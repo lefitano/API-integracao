@@ -110,3 +110,29 @@ export async function atualizarProduto(req, res, next) {
         next(err);
     }
 }
+
+// DELETE /produtos/:id
+export async function removerProduto(req, res, next) {
+    try {
+        const [pedidos] = await pool.query(
+            'SELECT COUNT(*) AS total FROM pedidos WHERE produto_id = ?',
+            [req.params.id]
+        );
+
+        if (pedidos[0].total > 0) {
+            return res.status(409).json({
+                erro: 'Não é possível remover: existem pedidos vinculados a este produto'
+            });
+        }
+
+        const [resultado] = await pool.query('DELETE FROM produtos WHERE id = ?', [req.params.id]);
+
+        if (resultado.affectedRows === 0) {
+            return res.status(404).json({ erro: 'Produto não encontrado' });
+        }
+
+        res.status(204).send();
+    } catch (err) {
+        next(err);
+    }
+}
