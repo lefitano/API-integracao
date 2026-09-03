@@ -47,3 +47,18 @@ export async function listarProdutos(req, res, next) {
         next(err);
     }
 }
+
+// GET /produtos/:id
+export async function detalharProduto(req, res, next) {
+    try {
+        const [linhas] = await pool.query('SELECT * FROM produtos WHERE id = ?', [req.params.id]);
+
+        if (linhas.length === 0) {
+            return res.status(404).json({ erro: 'Produto não encontrado' });
+        }
+
+        res.json(linhas[0]);
+    } catch (err) {
+        next(err);
+    }
+}
