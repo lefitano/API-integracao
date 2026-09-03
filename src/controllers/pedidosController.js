@@ -213,3 +213,39 @@ export async function atualizarPedido(req, res, next) {
         conexao.release();
     }
 }
+
+// DELETE /pedidos/:id -> remove o pedido e devolve o estoque
+export async function removerPedido(req, res, next) {
+    const conexao = await pool.getConnection();
+
+    try {
+        await conexao.beginTransaction();
+
+        const [pedidos] = await conexao.query('SELECT * FROM pedidos WHERE id = ? FOR UPDATE', [req.params.id]);
+
+        if (pedidos.length === 0) {
+            await conexao.rollback();
+            return res.status(404).json({ erro: 'Pedido não encontrado' });
+        }
+
+        const pedido = pedidos[0];
+
+        // Só devolve estoque se o pedido ainda estava reservando (não cancelado)
+        if (pedido.status !== 'cancelado') {
+            await conexao.query(
+                'UPDATE produtos SET estoque = estoque + ? WHERE id = ?',
+                [pedido.quantidade, pedido.produto_id]
+            );
+        }
+
+        await conexao.query('DELETE FROM pedidos WHERE id = ?', [req.params.id]);
+        await conexao.commit();
+
+        res.status(204).send();
+    } catch (err) {
+        await conexao.rollback();
+        next(err);
+    } finally {
+        conexao.release();
+    }
+}
