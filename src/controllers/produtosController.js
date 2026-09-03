@@ -84,3 +84,29 @@ export async function criarProduto(req, res, next) {
         next(err);
     }
 }
+
+// PUT /produtos/:id
+export async function atualizarProduto(req, res, next) {
+    try {
+        const erros = validarProduto(req.body);
+        if (erros.length > 0) {
+            return res.status(400).json({ erros });
+        }
+
+        const { nome, descricao, preco, categoria, estoque, marca } = req.body;
+
+        const [resultado] = await pool.query(
+            'UPDATE produtos SET nome = ?, descricao = ?, preco = ?, categoria = ?, estoque = ?, marca = ? WHERE id = ?',
+            [nome, descricao, preco, categoria, estoque, marca, req.params.id]
+        );
+
+        if (resultado.affectedRows === 0) {
+            return res.status(404).json({ erro: 'Produto não encontrado' });
+        }
+
+        const [atualizado] = await pool.query('SELECT * FROM produtos WHERE id = ?', [req.params.id]);
+        res.json(atualizado[0]);
+    } catch (err) {
+        next(err);
+    }
+}
