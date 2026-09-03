@@ -87,3 +87,61 @@ export async function detalharPedido(req, res, next) {
         next(err);
     }
 }
+
+// POST /pedidos  -> valida e decrementa o estoque
+export async function criarPedido(req, res, next) {
+    const erros = validarPedido(req.body);
+    if (erros.length > 0) {
+        return res.status(400).json({ erros });
+    }
+
+    const { produto_id, quantidade, cliente_nome, cliente_email, status } = req.body;
+    const conexao = await pool.getConnection();
+
+    try {
+        await conexao.beginTransaction();
+
+        // FOR UPDATE trava a linha do produto até o commit, evitando venda duplicada do mesmo estoque
+        const [produtos] = await conexao.query(
+            'SELECT * FROM produtos WHERE id = ? FOR UPDATE',
+            [produto_id]
+        );
+
+        if (produtos.length === 0) {
+            await conexao.rollback();
+            return res.status(404).json({ erro: 'Produto não encontrado' });
+        }
+
+        const produto = produtos[0];
+
+        if (produto.estoque < Number(quantidade)) {
+            await conexao.rollback();
+            return res.status(409).json({
+                erro: 'Estoque insuficiente',
+                estoque_disponivel: produto.estoque,
+                quantidade_solicitada: Number(quantidade)
+            });
+        }
+
+        const [resultado] = await conexao.query(
+            `INSERT INTO pedidos (produto_id, quantidade, cliente_nome, cliente_email, status)
+             VALUES (?, ?, ?, ?, ?)`,
+            [produto_id, quantidade, cliente_nome, cliente_email, status || 'confirmado']
+        );
+
+        await conexao.query(
+            'UPDATE produtos SET estoque = estoque - ? WHERE id = ?',
+            [quantidade, produto_id]
+        );
+
+        await conexao.commit();
+
+        const [criado] = await pool.query('SELECT * FROM pedidos WHERE id = ?', [resultado.insertId]);
+        res.status(201).json(criado[0]);
+    } catch (err) {
+        await conexao.rollback();
+        next(err);
+    } finally {
+        conexao.release();
+    }
+}
