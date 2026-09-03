@@ -62,3 +62,25 @@ export async function detalharProduto(req, res, next) {
         next(err);
     }
 }
+
+// POST /produtos
+export async function criarProduto(req, res, next) {
+    try {
+        const erros = validarProduto(req.body);
+        if (erros.length > 0) {
+            return res.status(400).json({ erros });
+        }
+
+        const { nome, descricao, preco, categoria, estoque, marca } = req.body;
+
+        const [resultado] = await pool.query(
+            'INSERT INTO produtos (nome, descricao, preco, categoria, estoque, marca) VALUES (?, ?, ?, ?, ?, ?)',
+            [nome, descricao, preco, categoria, estoque, marca]
+        );
+
+        const [criado] = await pool.query('SELECT * FROM produtos WHERE id = ?', [resultado.insertId]);
+        res.status(201).json(criado[0]);
+    } catch (err) {
+        next(err);
+    }
+}
