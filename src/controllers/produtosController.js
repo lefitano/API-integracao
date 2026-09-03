@@ -21,3 +21,29 @@ function validarProduto(body) {
 
     return erros;
 }
+
+// GET /produtos
+export async function listarProdutos(req, res, next) {
+    try {
+        const { categoria, marca } = req.query;
+
+        let sql = 'SELECT * FROM produtos';
+        const params = [];
+
+        if (categoria) {
+            params.push(categoria);
+            sql += params.length === 1 ? ' WHERE categoria = ?' : ' AND categoria = ?';
+        }
+        if (marca) {
+            params.push(marca);
+            sql += params.length === 1 ? ' WHERE marca = ?' : ' AND marca = ?';
+        }
+
+        sql += ' ORDER BY id';
+
+        const [produtos] = await pool.query(sql, params);
+        res.json(produtos);
+    } catch (err) {
+        next(err);
+    }
+}
