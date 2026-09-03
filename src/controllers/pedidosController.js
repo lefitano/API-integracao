@@ -66,3 +66,24 @@ export async function listarPedidos(req, res, next) {
         next(err);
     }
 }
+
+// GET /pedidos/:id
+export async function detalharPedido(req, res, next) {
+    try {
+        const [linhas] = await pool.query(
+            `SELECT p.*, pr.nome AS produto_nome, pr.preco AS produto_preco
+             FROM pedidos p
+             JOIN produtos pr ON pr.id = p.produto_id
+             WHERE p.id = ?`,
+            [req.params.id]
+        );
+
+        if (linhas.length === 0) {
+            return res.status(404).json({ erro: 'Pedido não encontrado' });
+        }
+
+        res.json(linhas[0]);
+    } catch (err) {
+        next(err);
+    }
+}
