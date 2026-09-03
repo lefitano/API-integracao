@@ -145,3 +145,71 @@ export async function criarPedido(req, res, next) {
         conexao.release();
     }
 }
+
+// PUT /pedidos/:id  -> ajusta o estoque conforme a diferença de quantidade
+export async function atualizarPedido(req, res, next) {
+    const erros = validarPedido(req.body, { exigirProduto: false });
+    if (erros.length > 0) {
+        return res.status(400).json({ erros });
+    }
+
+    const { quantidade, cliente_nome, cliente_email, status } = req.body;
+    const conexao = await pool.getConnection();
+
+    try {
+        await conexao.beginTransaction();
+
+        const [pedidos] = await conexao.query('SELECT * FROM pedidos WHERE id = ? FOR UPDATE', [req.params.id]);
+
+        if (pedidos.length === 0) {
+            await conexao.rollback();
+            return res.status(404).json({ erro: 'Pedido não encontrado' });
+        }
+
+        const pedido = pedidos[0];
+        const novoStatus = status || pedido.status;
+
+        const [produtos] = await conexao.query(
+            'SELECT * FROM produtos WHERE id = ? FOR UPDATE',
+            [pedido.produto_id]
+        );
+        const produto = produtos[0];
+
+        // Quanto do estoque este pedido reserva hoje, e quanto vai reservar depois.
+        const reservadoAntes = pedido.status === 'cancelado' ? 0 : pedido.quantidade;
+        const reservadoDepois = novoStatus === 'cancelado' ? 0 : Number(quantidade);
+        const diferenca = reservadoDepois - reservadoAntes;
+
+        if (diferenca > produto.estoque) {
+            await conexao.rollback();
+            return res.status(409).json({
+                erro: 'Estoque insuficiente para atualizar o pedido',
+                estoque_disponivel: produto.estoque,
+                quantidade_adicional_necessaria: diferenca
+            });
+        }
+
+        if (diferenca !== 0) {
+            await conexao.query(
+                'UPDATE produtos SET estoque = estoque - ? WHERE id = ?',
+                [diferenca, produto.id]
+            );
+        }
+
+        await conexao.query(
+            `UPDATE pedidos SET quantidade = ?, cliente_nome = ?, cliente_email = ?, status = ?
+             WHERE id = ?`,
+            [quantidade, cliente_nome, cliente_email, novoStatus, req.params.id]
+        );
+
+        await conexao.commit();
+
+        const [atualizado] = await pool.query('SELECT * FROM pedidos WHERE id = ?', [req.params.id]);
+        res.json(atualizado[0]);
+    } catch (err) {
+        await conexao.rollback();
+        next(err);
+    } finally {
+        conexao.release();
+    }
+}
