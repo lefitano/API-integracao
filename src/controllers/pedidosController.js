@@ -31,3 +31,38 @@ function validarPedido(body, { exigirProduto = true } = {}) {
 
     return erros;
 }
+
+// GET /pedidos
+export async function listarPedidos(req, res, next) {
+    try {
+        const { status, cliente_email } = req.query;
+
+        let sql = `
+            SELECT p.*, pr.nome AS produto_nome, pr.preco AS produto_preco
+            FROM pedidos p
+            JOIN produtos pr ON pr.id = p.produto_id
+        `;
+        const params = [];
+        const filtros = [];
+
+        if (status) {
+            filtros.push('p.status = ?');
+            params.push(status);
+        }
+        if (cliente_email) {
+            filtros.push('p.cliente_email = ?');
+            params.push(cliente_email);
+        }
+
+        if (filtros.length > 0) {
+            sql += ` WHERE ${filtros.join(' AND ')}`;
+        }
+
+        sql += ' ORDER BY p.id';
+
+        const [pedidos] = await pool.query(sql, params);
+        res.json(pedidos);
+    } catch (err) {
+        next(err);
+    }
+}
