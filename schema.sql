@@ -27,15 +27,17 @@ CREATE TABLE produtos (
 
 CREATE TABLE pedidos (
     id              INT AUTO_INCREMENT PRIMARY KEY,
+    cliente_id      INT NOT NULL,
     produto_id      INT NOT NULL,
     quantidade      INT NOT NULL,
-    cliente_nome    VARCHAR(120) NOT NULL,
-    cliente_email   VARCHAR(160) NOT NULL,
+    valor_total     DECIMAL(10, 2) NOT NULL,
     data_pedido     DATETIME DEFAULT CURRENT_TIMESTAMP,
     status          VARCHAR(20) NOT NULL DEFAULT 'confirmado',
+    FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE RESTRICT,
     FOREIGN KEY (produto_id) REFERENCES produtos(id) ON DELETE RESTRICT
 );
 
+CREATE INDEX idx_pedidos_cliente ON pedidos (cliente_id);
 CREATE INDEX idx_pedidos_produto ON pedidos (produto_id);
 CREATE INDEX idx_pedidos_status  ON pedidos (status);
 
@@ -50,9 +52,11 @@ INSERT INTO produtos (nome, descricao, preco, categoria, estoque, marca) VALUES
 ('Monitor 24 Full HD',  'Monitor IPS 24 polegadas 75Hz',     899.00, 'monitores',    8, 'LG'),
 ('Headset HS300',       'Headset com microfone e surround',  219.50, 'audio',       20, 'JBL');
 
-INSERT INTO pedidos (produto_id, quantidade, cliente_nome, cliente_email, status) VALUES
-(1, 2, 'Maria Souza', 'maria.souza@email.com', 'confirmado'),
-(3, 1, 'Joao Lima',   'joao.lima@email.com',   'enviado');
+INSERT INTO pedidos (cliente_id, produto_id, quantidade, valor_total, status) VALUES
+(1, 1, 2, 579.80, 'confirmado'),
+(2, 3, 1, 899.00, 'enviado'),
+(1, 4, 1, 219.50, 'entregue');
 
 UPDATE produtos SET estoque = estoque - 2 WHERE id = 1;
 UPDATE produtos SET estoque = estoque - 1 WHERE id = 3;
+UPDATE produtos SET estoque = estoque - 1 WHERE id = 4;
