@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import pool from './config/db.js';
+import clientesRoutes from './routes/clientes.js';
 import produtosRoutes from './routes/produtos.js';
 import pedidosRoutes from './routes/pedidos.js';
 
@@ -20,12 +21,11 @@ app.get('/', (req, res) => {
             { nome: 'Leonardo Monteiro', instituicao: 'Unifor' },
             { nome: 'Saulo', instituicao: 'Unifor' }
         ],
-        recursos: ['/produtos', '/pedidos'],
+        recursos: ['/clientes', '/produtos', '/pedidos'],
         health: '/health'
     });
 });
 
-// Usado pela plataforma de deploy para checar se a API está de pé
 app.get('/health', async (req, res) => {
     try {
         await pool.query('SELECT 1');
@@ -35,15 +35,14 @@ app.get('/health', async (req, res) => {
     }
 });
 
+app.use('/clientes', clientesRoutes);
 app.use('/produtos', produtosRoutes);
 app.use('/pedidos', pedidosRoutes);
 
-// 404 para qualquer rota não registrada
 app.use((req, res) => {
     res.status(404).json({ erro: `Rota não encontrada: ${req.method} ${req.originalUrl}` });
 });
 
-// Tratador de erros central: todo next(err) dos controllers cai aqui
 app.use((err, req, res, next) => {
     console.error('Erro na requisição:', err);
 
