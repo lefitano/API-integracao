@@ -12,6 +12,7 @@ schema.sql                     # script de criação das tabelas + dados iniciai
 .env.example                   # modelo de variáveis de ambiente
 src/server.js                  # configuração do Express e registro das rotas
 src/config/db.js               # pool de conexões MySQL
+src/routes/clientes.js         # rotas do recurso clientes (controller pendente)
 src/routes/produtos.js         # rotas do recurso produtos
 src/routes/pedidos.js          # rotas do recurso pedidos
 src/controllers/produtosController.js
@@ -44,11 +45,47 @@ npm run dev
 
 ## Recursos e campos
 
+**clientes** (7 campos): `id`, `nome`, `email`, `telefone`, `cpf`, `cidade`, `data_cadastro`
+
 **produtos** (7 campos): `id`, `nome`, `descricao`, `preco`, `categoria`, `estoque`, `marca`
 
-**pedidos** (7 campos): `id`, `produto_id`, `quantidade`, `cliente_nome`, `cliente_email`, `data_pedido`, `status`
+**pedidos** (7 campos): `id`, `cliente_id`, `produto_id`, `quantidade`, `valor_total`, `data_pedido`, `status`
 
 Status válidos de um pedido: `confirmado`, `enviado`, `entregue`, `cancelado`.
+
+## Relacionamentos
+
+O banco é relacional: `pedidos` é a tabela que liga as outras duas.
+
+```
+clientes (1) ──< pedidos >── (1) produtos
+```
+
+- Um **cliente** tem vários pedidos (`pedidos.cliente_id` → `clientes.id`)
+- Um **produto** aparece em vários pedidos (`pedidos.produto_id` → `produtos.id`)
+- Ambas as chaves estrangeiras usam `ON DELETE RESTRICT`: não é possível apagar um cliente ou um produto que já tenha pedido registrado
+
+Por causa disso, `POST /pedidos` recebe apenas `cliente_id`, `produto_id`, `quantidade` e opcionalmente `status`. Os dados do cliente e do produto não são copiados no corpo da requisição — vêm do banco pelo relacionamento, e a resposta já devolve os dois lados via `JOIN`:
+
+```json
+{
+  "id": 4,
+  "cliente_id": 1,
+  "produto_id": 2,
+  "quantidade": 3,
+  "valor_total": 449.70,
+  "data_pedido": "2026-09-07T14:20:00.000Z",
+  "status": "confirmado",
+  "cliente_nome": "Maria Souza",
+  "cliente_email": "maria.souza@email.com",
+  "cliente_cidade": "Fortaleza",
+  "produto_nome": "Mouse Gamer M2",
+  "produto_preco": 149.90,
+  "produto_marca": "Logitech"
+}
+```
+
+O `valor_total` também é derivado do relacionamento: a API busca o `preco` do produto e multiplica pela quantidade, em vez de confiar em um valor enviado pelo cliente da API.
 
 ## Nossa regra de negócio
 
@@ -66,6 +103,12 @@ Complementos da regra:
 | Método | Rota | Descrição | Status |
 |---|---|---|---|
 | GET | /health | Checagem de saúde da API e do banco | ✅ |
+| GET | /clientes | Lista todos os clientes | ⏳ |
+| GET | /clientes/:id | Detalha um cliente | ⏳ |
+| GET | /clientes/:id/pedidos | Lista os pedidos de um cliente | ⏳ |
+| POST | /clientes | Cria um cliente | ⏳ |
+| PUT | /clientes/:id | Atualiza um cliente | ⏳ |
+| DELETE | /clientes/:id | Remove um cliente | ⏳ |
 | GET | /produtos | Lista todos os produtos | ✅ |
 | GET | /produtos/:id | Detalha um produto | ✅ |
 | POST | /produtos | Cria um produto | ✅ |
@@ -79,7 +122,7 @@ Complementos da regra:
 
 ### Filtros opcionais (query string)
 - `GET /produtos?categoria=perifericos&marca=Logitech`
-- `GET /pedidos?status=confirmado&cliente_email=maria.souza@email.com`
+- `GET /pedidos?status=confirmado&cliente_id=1&produto_id=3`
 
 ### Exemplos
 
@@ -97,16 +140,20 @@ curl -X POST http://localhost:3001/produtos \
   }'
 ```
 
-Criar pedido:
+Criar pedido (informando só os ids das entidades relacionadas):
 ```bash
 curl -X POST http://localhost:3001/pedidos \
   -H "Content-Type: application/json" \
   -d '{
-    "produto_id": 1,
-    "quantidade": 2,
-    "cliente_nome": "Maria Souza",
-    "cliente_email": "maria.souza@email.com"
+    "cliente_id": 1,
+    "produto_id": 2,
+    "quantidade": 3
   }'
+```
+
+Resposta quando o cliente informado não existe (`404`):
+```json
+{ "erro": "Cliente não encontrado" }
 ```
 
 Resposta quando falta estoque (`409`):
@@ -128,6 +175,7 @@ Resposta quando falta estoque (`409`):
 | 404 | Recurso não encontrado |
 | 409 | Conflito (estoque insuficiente, produto com pedidos vinculados) |
 | 500 | Erro interno |
+| 501 | Endpoint de clientes ainda não implementado |
 
 ## Deploy
 
