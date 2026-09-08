@@ -22,7 +22,6 @@ function validarProduto(body) {
     return erros;
 }
 
-// GET /produtos
 export async function listarProdutos(req, res, next) {
     try {
         const { categoria, marca } = req.query;
@@ -48,7 +47,6 @@ export async function listarProdutos(req, res, next) {
     }
 }
 
-// GET /produtos/:id
 export async function detalharProduto(req, res, next) {
     try {
         const [linhas] = await pool.query('SELECT * FROM produtos WHERE id = ?', [req.params.id]);
@@ -63,7 +61,6 @@ export async function detalharProduto(req, res, next) {
     }
 }
 
-// POST /produtos
 export async function criarProduto(req, res, next) {
     try {
         const erros = validarProduto(req.body);
@@ -85,7 +82,6 @@ export async function criarProduto(req, res, next) {
     }
 }
 
-// PUT /produtos/:id
 export async function atualizarProduto(req, res, next) {
     try {
         const erros = validarProduto(req.body);
@@ -111,7 +107,6 @@ export async function atualizarProduto(req, res, next) {
     }
 }
 
-// DELETE /produtos/:id
 export async function removerProduto(req, res, next) {
     try {
         const [pedidos] = await pool.query(

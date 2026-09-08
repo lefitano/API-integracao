@@ -2,27 +2,47 @@ import pool from '../config/db.js';
 
 const STATUS_VALIDOS = ['confirmado', 'enviado', 'entregue', 'cancelado'];
 
-function validarPedido(body, { exigirProduto = true } = {}) {
+const SELECT_PEDIDO = `
+    SELECT
+        p.id,
+        p.cliente_id,
+        p.produto_id,
+        p.quantidade,
+        p.valor_total,
+        p.data_pedido,
+        p.status,
+        c.nome  AS cliente_nome,
+        c.email AS cliente_email,
+        c.cidade AS cliente_cidade,
+        pr.nome  AS produto_nome,
+        pr.preco AS produto_preco,
+        pr.marca AS produto_marca
+    FROM pedidos p
+    JOIN clientes c  ON c.id  = p.cliente_id
+    JOIN produtos pr ON pr.id = p.produto_id
+`;
+
+function validarPedido(body, { exigirRelacionamentos = true } = {}) {
     const erros = [];
 
-    if (exigirProduto && !body.produto_id) {
-        erros.push("O campo 'produto_id' é obrigatório");
+    if (exigirRelacionamentos) {
+        if (!body.cliente_id) {
+            erros.push("O campo 'cliente_id' é obrigatório");
+        } else if (!Number.isInteger(Number(body.cliente_id)) || Number(body.cliente_id) <= 0) {
+            erros.push("O campo 'cliente_id' deve ser um id válido");
+        }
+
+        if (!body.produto_id) {
+            erros.push("O campo 'produto_id' é obrigatório");
+        } else if (!Number.isInteger(Number(body.produto_id)) || Number(body.produto_id) <= 0) {
+            erros.push("O campo 'produto_id' deve ser um id válido");
+        }
     }
 
     if (body.quantidade === undefined || body.quantidade === null || body.quantidade === '') {
         erros.push("O campo 'quantidade' é obrigatório");
     } else if (!Number.isInteger(Number(body.quantidade)) || Number(body.quantidade) <= 0) {
         erros.push("O campo 'quantidade' deve ser um número inteiro maior que zero");
-    }
-
-    if (!body.cliente_nome) {
-        erros.push("O campo 'cliente_nome' é obrigatório");
-    }
-
-    if (!body.cliente_email) {
-        erros.push("O campo 'cliente_email' é obrigatório");
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.cliente_email)) {
-        erros.push("O campo 'cliente_email' deve ser um e-mail válido");
     }
 
     if (body.status !== undefined && !STATUS_VALIDOS.includes(body.status)) {
@@ -32,16 +52,11 @@ function validarPedido(body, { exigirProduto = true } = {}) {
     return erros;
 }
 
-// GET /pedidos
 export async function listarPedidos(req, res, next) {
     try {
-        const { status, cliente_email } = req.query;
+        const { status, cliente_id, produto_id } = req.query;
 
-        let sql = `
-            SELECT p.*, pr.nome AS produto_nome, pr.preco AS produto_preco
-            FROM pedidos p
-            JOIN produtos pr ON pr.id = p.produto_id
-        `;
+        let sql = SELECT_PEDIDO;
         const params = [];
         const filtros = [];
 
@@ -49,9 +64,13 @@ export async function listarPedidos(req, res, next) {
             filtros.push('p.status = ?');
             params.push(status);
         }
-        if (cliente_email) {
-            filtros.push('p.cliente_email = ?');
-            params.push(cliente_email);
+        if (cliente_id) {
+            filtros.push('p.cliente_id = ?');
+            params.push(cliente_id);
+        }
+        if (produto_id) {
+            filtros.push('p.produto_id = ?');
+            params.push(produto_id);
         }
 
         if (filtros.length > 0) {
@@ -67,16 +86,9 @@ export async function listarPedidos(req, res, next) {
     }
 }
 
-// GET /pedidos/:id
 export async function detalharPedido(req, res, next) {
     try {
-        const [linhas] = await pool.query(
-            `SELECT p.*, pr.nome AS produto_nome, pr.preco AS produto_preco
-             FROM pedidos p
-             JOIN produtos pr ON pr.id = p.produto_id
-             WHERE p.id = ?`,
-            [req.params.id]
-        );
+        const [linhas] = await pool.query(`${SELECT_PEDIDO} WHERE p.id = ?`, [req.params.id]);
 
         if (linhas.length === 0) {
             return res.status(404).json({ erro: 'Pedido não encontrado' });
@@ -88,20 +100,25 @@ export async function detalharPedido(req, res, next) {
     }
 }
 
-// POST /pedidos  -> valida e decrementa o estoque
 export async function criarPedido(req, res, next) {
     const erros = validarPedido(req.body);
     if (erros.length > 0) {
         return res.status(400).json({ erros });
     }
 
-    const { produto_id, quantidade, cliente_nome, cliente_email, status } = req.body;
+    const { cliente_id, produto_id, quantidade, status } = req.body;
     const conexao = await pool.getConnection();
 
     try {
         await conexao.beginTransaction();
 
-        // FOR UPDATE trava a linha do produto até o commit, evitando venda duplicada do mesmo estoque
+        const [clientes] = await conexao.query('SELECT id FROM clientes WHERE id = ?', [cliente_id]);
+
+        if (clientes.length === 0) {
+            await conexao.rollback();
+            return res.status(404).json({ erro: 'Cliente não encontrado' });
+        }
+
         const [produtos] = await conexao.query(
             'SELECT * FROM produtos WHERE id = ? FOR UPDATE',
             [produto_id]
@@ -123,10 +140,12 @@ export async function criarPedido(req, res, next) {
             });
         }
 
+        const valorTotal = (Number(produto.preco) * Number(quantidade)).toFixed(2);
+
         const [resultado] = await conexao.query(
-            `INSERT INTO pedidos (produto_id, quantidade, cliente_nome, cliente_email, status)
+            `INSERT INTO pedidos (cliente_id, produto_id, quantidade, valor_total, status)
              VALUES (?, ?, ?, ?, ?)`,
-            [produto_id, quantidade, cliente_nome, cliente_email, status || 'confirmado']
+            [cliente_id, produto_id, quantidade, valorTotal, status || 'confirmado']
         );
 
         await conexao.query(
@@ -136,7 +155,7 @@ export async function criarPedido(req, res, next) {
 
         await conexao.commit();
 
-        const [criado] = await pool.query('SELECT * FROM pedidos WHERE id = ?', [resultado.insertId]);
+        const [criado] = await pool.query(`${SELECT_PEDIDO} WHERE p.id = ?`, [resultado.insertId]);
         res.status(201).json(criado[0]);
     } catch (err) {
         await conexao.rollback();
@@ -146,14 +165,13 @@ export async function criarPedido(req, res, next) {
     }
 }
 
-// PUT /pedidos/:id  -> ajusta o estoque conforme a diferença de quantidade
 export async function atualizarPedido(req, res, next) {
-    const erros = validarPedido(req.body, { exigirProduto: false });
+    const erros = validarPedido(req.body, { exigirRelacionamentos: false });
     if (erros.length > 0) {
         return res.status(400).json({ erros });
     }
 
-    const { quantidade, cliente_nome, cliente_email, status } = req.body;
+    const { quantidade, status } = req.body;
     const conexao = await pool.getConnection();
 
     try {
@@ -175,7 +193,6 @@ export async function atualizarPedido(req, res, next) {
         );
         const produto = produtos[0];
 
-        // Quanto do estoque este pedido reserva hoje, e quanto vai reservar depois.
         const reservadoAntes = pedido.status === 'cancelado' ? 0 : pedido.quantidade;
         const reservadoDepois = novoStatus === 'cancelado' ? 0 : Number(quantidade);
         const diferenca = reservadoDepois - reservadoAntes;
@@ -196,15 +213,16 @@ export async function atualizarPedido(req, res, next) {
             );
         }
 
+        const valorTotal = (Number(produto.preco) * Number(quantidade)).toFixed(2);
+
         await conexao.query(
-            `UPDATE pedidos SET quantidade = ?, cliente_nome = ?, cliente_email = ?, status = ?
-             WHERE id = ?`,
-            [quantidade, cliente_nome, cliente_email, novoStatus, req.params.id]
+            'UPDATE pedidos SET quantidade = ?, valor_total = ?, status = ? WHERE id = ?',
+            [quantidade, valorTotal, novoStatus, req.params.id]
         );
 
         await conexao.commit();
 
-        const [atualizado] = await pool.query('SELECT * FROM pedidos WHERE id = ?', [req.params.id]);
+        const [atualizado] = await pool.query(`${SELECT_PEDIDO} WHERE p.id = ?`, [req.params.id]);
         res.json(atualizado[0]);
     } catch (err) {
         await conexao.rollback();
@@ -214,7 +232,6 @@ export async function atualizarPedido(req, res, next) {
     }
 }
 
-// DELETE /pedidos/:id -> remove o pedido e devolve o estoque
 export async function removerPedido(req, res, next) {
     const conexao = await pool.getConnection();
 
@@ -230,7 +247,6 @@ export async function removerPedido(req, res, next) {
 
         const pedido = pedidos[0];
 
-        // Só devolve estoque se o pedido ainda estava reservando (não cancelado)
         if (pedido.status !== 'cancelado') {
             await conexao.query(
                 'UPDATE produtos SET estoque = estoque + ? WHERE id = ?',
