@@ -186,7 +186,7 @@ A API lê a porta de `process.env.PORT` e as credenciais do banco das variáveis
 (aceita tanto `DB_*` quanto as `MYSQL*` injetadas pelo Railway), então roda em qualquer
 plataforma sem alteração de código.
 
-**URL do deploy:** _(preencher depois de publicar)_
+**URL do deploy:** https://loja-api-integracao.onrender.com
 
 ## Equipe
 
