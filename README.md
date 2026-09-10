@@ -103,12 +103,12 @@ Complementos da regra:
 | Método | Rota | Descrição | Status |
 |---|---|---|---|
 | GET | /health | Checagem de saúde da API e do banco | ✅ |
-| GET | /clientes | Lista todos os clientes | ⏳ |
-| GET | /clientes/:id | Detalha um cliente | ⏳ |
-| GET | /clientes/:id/pedidos | Lista os pedidos de um cliente | ⏳ |
-| POST | /clientes | Cria um cliente | ⏳ |
-| PUT | /clientes/:id | Atualiza um cliente | ⏳ |
-| DELETE | /clientes/:id | Remove um cliente | ⏳ |
+| GET | /clientes | Lista todos os clientes | ✅ |
+| GET | /clientes/:id | Detalha um cliente | ✅ |
+| GET | /clientes/:id/pedidos | Lista os pedidos de um cliente | ✅ |
+| POST | /clientes | Cria um cliente | ✅ |
+| PUT | /clientes/:id | Atualiza um cliente | ✅ |
+| DELETE | /clientes/:id | Remove um cliente | ✅ |
 | GET | /produtos | Lista todos os produtos | ✅ |
 | GET | /produtos/:id | Detalha um produto | ✅ |
 | POST | /produtos | Cria um produto | ✅ |
