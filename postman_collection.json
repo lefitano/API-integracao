@@ -1,0 +1,271 @@
+{
+  "info": {
+    "name": "Loja API - Demonstração",
+    "description": "Coleção com os principais endpoints da Loja API, organizados por recurso, pra demonstração rápida. As requisições de criação salvam o id retornado em uma variável de coleção, usada automaticamente pelas próximas requisições da mesma pasta.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://loja-api-integracao.onrender.com" },
+    { "key": "cliente_criado_id", "value": "" },
+    { "key": "produto_criado_id", "value": "" },
+    { "key": "pedido_criado_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "0 - Health Check",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+      }
+    },
+    {
+      "name": "1 - Clientes",
+      "item": [
+        {
+          "name": "Listar clientes",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/clientes", "host": ["{{base_url}}"], "path": ["clientes"] }
+          }
+        },
+        {
+          "name": "Criar cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const dados = pm.response.json();",
+                  "    pm.collectionVariables.set('cliente_criado_id', dados.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Pedro Henrique\",\n  \"email\": \"pedro.demo@email.com\",\n  \"telefone\": \"85999992222\",\n  \"cpf\": \"444.555.666-77\",\n  \"cidade\": \"Fortaleza\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/clientes", "host": ["{{base_url}}"], "path": ["clientes"] }
+          }
+        },
+        {
+          "name": "Detalhar cliente criado",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/clientes/{{cliente_criado_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["clientes", "{{cliente_criado_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Pedidos do cliente criado",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/clientes/{{cliente_criado_id}}/pedidos",
+              "host": ["{{base_url}}"],
+              "path": ["clientes", "{{cliente_criado_id}}", "pedidos"]
+            }
+          }
+        },
+        {
+          "name": "Atualizar cliente criado",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Pedro Henrique Silva\",\n  \"email\": \"pedro.silva@email.com\",\n  \"telefone\": \"85999993333\",\n  \"cpf\": \"555.666.777-88\",\n  \"cidade\": \"Caucaia\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/clientes/{{cliente_criado_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["clientes", "{{cliente_criado_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Remover cliente criado",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/clientes/{{cliente_criado_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["clientes", "{{cliente_criado_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 - Produtos",
+      "item": [
+        {
+          "name": "Listar produtos",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/produtos", "host": ["{{base_url}}"], "path": ["produtos"] }
+          }
+        },
+        {
+          "name": "Criar produto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const dados = pm.response.json();",
+                  "    pm.collectionVariables.set('produto_criado_id', dados.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Webcam Demonstração\",\n  \"descricao\": \"Webcam Full HD 1080p com microfone\",\n  \"preco\": 199.90,\n  \"categoria\": \"perifericos\",\n  \"estoque\": 12,\n  \"marca\": \"Logitech\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/produtos", "host": ["{{base_url}}"], "path": ["produtos"] }
+          }
+        },
+        {
+          "name": "Detalhar produto criado",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/produtos/{{produto_criado_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["produtos", "{{produto_criado_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Atualizar produto criado",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Webcam Demonstração Atualizada\",\n  \"descricao\": \"Webcam Full HD 1080p com microfone e tampa\",\n  \"preco\": 179.90,\n  \"categoria\": \"perifericos\",\n  \"estoque\": 20,\n  \"marca\": \"Logitech\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/produtos/{{produto_criado_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["produtos", "{{produto_criado_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Remover produto criado",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/produtos/{{produto_criado_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["produtos", "{{produto_criado_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 - Pedidos e regra de negócio",
+      "item": [
+        {
+          "name": "Listar pedidos",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/pedidos", "host": ["{{base_url}}"], "path": ["pedidos"] }
+          }
+        },
+        {
+          "name": "Criar pedido (cliente 2 + produto 2, dados do seed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const dados = pm.response.json();",
+                  "    pm.collectionVariables.set('pedido_criado_id', dados.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente_id\": 2,\n  \"produto_id\": 2,\n  \"quantidade\": 1\n}"
+            },
+            "url": { "raw": "{{base_url}}/pedidos", "host": ["{{base_url}}"], "path": ["pedidos"] }
+          }
+        },
+        {
+          "name": "Detalhar pedido criado",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/pedidos/{{pedido_criado_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["pedidos", "{{pedido_criado_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Atualizar pedido criado (status -> enviado)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantidade\": 1,\n  \"status\": \"enviado\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/pedidos/{{pedido_criado_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["pedidos", "{{pedido_criado_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Remover pedido criado (devolve estoque)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/pedidos/{{pedido_criado_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["pedidos", "{{pedido_criado_id}}"]
+            }
+          }
+        },
+        {
+          "name": "DEMO: Estoque insuficiente (409)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente_id\": 1,\n  \"produto_id\": 3,\n  \"quantidade\": 999\n}"
+            },
+            "url": { "raw": "{{base_url}}/pedidos", "host": ["{{base_url}}"], "path": ["pedidos"] },
+            "description": "Produto 3 (Monitor) tem pouco estoque no seed do schema.sql. Mandar uma quantidade absurda (999) mostra a regra de negócio recusando o pedido com 409."
+          }
+        }
+      ]
+    }
+  ]
+}
